@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:stopwatch/ui/reset_button.dart';
 import 'package:stopwatch/ui/start_stop_button.dart';
 import 'package:stopwatch/ui/stopwatch_renderer.dart';
+import 'package:stopwatch/ui/stopwatch_ticker.dart';
 
 class Stopwatch extends StatefulWidget {
   const Stopwatch({Key? key}) : super(key: key);
@@ -13,48 +13,23 @@ class Stopwatch extends StatefulWidget {
 
 class _StopwatchState extends State<Stopwatch>
     with SingleTickerProviderStateMixin {
-  Duration _previousElapsed = Duration.zero;
-  Duration _currentElapsed = Duration.zero;
-  Duration get _elapsed => _previousElapsed + _currentElapsed;
+
+  final _tickerUIKey = GlobalKey<StopwatchTickerUIState>();
   bool _isRunning = false;
-  late final Ticker _ticker;
 
-  @override
-  void initState() {
-    super.initState();
-    _ticker = createTicker((elapsed) {
-      setState(() {
-        _currentElapsed = elapsed;
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    super.dispose();
-  }
 
   void _toggleRunning() {
     setState(() {
       _isRunning = !_isRunning;
-      if (_isRunning) {
-        _ticker.start();
-      } else {
-        _ticker.stop();
-        _previousElapsed += _currentElapsed;
-        _currentElapsed = Duration.zero;
-      }
     });
+    _tickerUIKey.currentState?.toggleRunning(_isRunning);
   }
 
   void _reset() {
-    _ticker.stop();
     setState(() {
       _isRunning = false;
-      _previousElapsed = Duration.zero;
-      _currentElapsed = Duration.zero;
     });
+    _tickerUIKey.currentState?.reset();
   }
 
   @override
@@ -64,10 +39,14 @@ class _StopwatchState extends State<Stopwatch>
         final radius = constraints.maxWidth / 2;
         return Stack(
           children: [
-            StopwatchRenderer(
-              elapsed: _elapsed,
+            // non-ticker dependent UI
+            StopwatchRenderer(radius: radius),
+            // ticker dependent UI
+            StopwatchTickerUI(
+              key: _tickerUIKey,
               radius: radius,
             ),
+            // reset button
             Align(
               alignment: Alignment.bottomLeft,
               child: SizedBox(
@@ -78,6 +57,7 @@ class _StopwatchState extends State<Stopwatch>
                 ),
               ),
             ),
+            // start/stop button
             Align(
               alignment: Alignment.bottomRight,
               child: SizedBox(
